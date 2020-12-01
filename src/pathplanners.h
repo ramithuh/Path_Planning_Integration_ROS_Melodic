@@ -91,11 +91,11 @@ public:
     void getCoordinate (float& x, float& y);
     void convertToCoordinate(int index, float& x, float& y);
     void mapToWorld(double mx, double my, double& wx, double& wy);
-    void add_open(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[],int n);
+    void add_open(multiset<cells> & OPL, vertex neighborCell, vertex goalCell, float g_score[1000][1000],int n);
    
     bool validate(float x, float y);
-    bool isValid(int startCell,int goalCell); 
-    bool isFree(int CellID); //returns true if the cell is Free
+    bool isValid(vertex startCell,vertex goalCell); 
+    bool isFree(vertex CellID); //returns true if the cell is Free
 
     vertex convertToCellVertex (float x, float y);
     int    convertToCellIndex (vertex current);
@@ -105,12 +105,12 @@ public:
     
     float getMoveCost(vertex CellID1, vertex CellID2);
 
-    vector <int> getNeighbour (int CellID);
-    vector<int> PathFinder(int startCell, int goalCell);
-    vector<int> AStar(int startCell, int goalCell, float g_score[][]);
-    vector<int> Dijkstra(int startCell, int goalCell, float g_score[][]);
-    vector<int> BFS(int startCell, int goalCell, float g_score[][]);
-    vector<int> constructPath(int startCell, int goalCell, float g_score[][]);
+    vector<vertex> getNeighbour (vertex CellID);
+    vector<int> PathFinder(vertex startCell, vertex goalCell);
+    vector<int> AStar(vertex startCell, vertex goalCell, float g_score[1000][1000]);
+    vector<int> Dijkstra(int startCell, int goalCell, float g_score[1000][1000]);
+    vector<int> BFS(int startCell, int goalCell, float g_score[1000][1000]);
+    vector<int> constructPath(vertex startCell, vertex goalCell, float g_score[1000][1000]);
     
     float heuristic(vertex cellID, vertex goalCell, int n){
         int x1 = goalCell.x;
