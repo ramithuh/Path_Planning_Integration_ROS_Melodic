@@ -49,9 +49,19 @@ using std::string;
 #ifndef PathPlanners_ROS
 #define PathPlanners_ROS
 
+struct vertex{  //Stores a vertex along with k1,k2 Costs
+
+    int x,y;
+    float k1;
+    float k2;
+    vertex(int,int,float,float);
+    vertex():x(0),y(0),k1(0),k2(0){}
+    
+};
+
 // Structure to store the cells in a data type
 struct cells{
-    int currentCell;
+    vertex currentCell;
     float fCost;
 };      
 
@@ -75,6 +85,7 @@ struct compare{ //Custom Comparison Function
 };
 
 typedef priority_queue<vertex, vector<vertex>, compare > m_priority_queue; //Min Priority Queue
+
 
 
 namespace PathPlanners_all{
@@ -101,13 +112,14 @@ public:
     void getCoordinate (float& x, float& y);
     void convertToCoordinate(int index, float& x, float& y);
     void mapToWorld(double mx, double my, double& wx, double& wy);
-    void add_open(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[],int n);
+    void add_open(multiset<cells> & OPL, vertex neighborCell, vertex goalCell, float g_score[1000][1000],int n);
    
     bool validate(float x, float y);
-    bool isValid(int startCell,int goalCell); 
-    bool isFree(int CellID); //returns true if the cell is Free
+    bool isValid(vertex startCell,vertex goalCell); 
+    bool isFree(vertex CellID); //returns true if the cell is Free
 
-    int convertToCellIndex (float x, float y);
+    vertex convertToCellVertex (float x, float y);
+    int    convertToCellIndex (vertex current);
     int getIndex(int i,int j){return (i*width)+j;}
     int getRow(int index){return index/width;}
     int getCol(int index){return index%width;}
@@ -144,9 +156,14 @@ public:
     vector<int> Dijkstra(int startCell, int goalCell, float g_score[]);
     vector<int> BFS(int startCell, int goalCell, float g_score[]);
     vector<int> constructPath(int startCell, int goalCell, float g_score[]);
+
     
-    float heuristic(int cellID, int goalCell, int n){
-        int x1=getRow(goalCell);int y1=getCol(goalCell);int x2=getRow(cellID);int y2=getCol(cellID);
+    float heuristic(vertex cellID, vertex goalCell, int n){
+        int x1 = goalCell.x;
+        int y1 = goalCell.y;
+        int x2 = cellID.x;
+        int y2 = cellID.y;
+
         int dx = abs(x2-x1) ; int dy = abs(y2-y1);
         // Manhattan Heuristic
         if(n==1)
