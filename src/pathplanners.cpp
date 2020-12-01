@@ -21,13 +21,7 @@ using namespace std;
 using namespace std::this_thread; // sleep_for, sleep_until
 using namespace std::chrono; // nanoseconds, system_clock, seconds
 
-struct vertex{  //Stores a vertex along with k1,k2 Costs
-    int x,y;
-    float k1;
-    float k2;
-    vertex(int,int,float,float);
-    vertex():x(0),y(0),k1(0),k2(0){}
-};
+
 vertex::vertex(int p_x,int p_y,float p_k1, float p_k2):x{p_x},y{p_y},k1{p_k1},k2{p_k2}{}
 //Goal & start
 vertex s_goal(25,25,0,0);
@@ -53,6 +47,11 @@ bool PATH[size_grid_s_x+1][size_grid_s_y+1];
 bool   Ukey[size_grid_s_x+1][size_grid_s_y+1];
 double Ukey_k1[size_grid_s_x+1][size_grid_s_y+1];
 double Ukey_k2[size_grid_s_x+1][size_grid_s_y+1];
+
+
+m_priority_queue U;
+
+queue<vertex> changed_nodes;
 
 
 PLUGINLIB_EXPORT_CLASS(PathPlanners_all::PathPlannersROS, nav_core::BaseGlobalPlanner);
@@ -83,30 +82,23 @@ timespec diff(timespec start, timespec end){
 
 inline vector <int> getNeighbour (int CellID);
 
-struct compare{ //Custom Comparison Function
-    bool operator()(const vertex & a, const vertex & b){   
-            if(a.k1 > b.k1){
-                return 1;
-            }else if((a.k1 == b.k1)){
-                if(a.k2 > b.k2)return 1;
-                else return 0;
-            }else return 0;
-    }
-};
 
-bool isVertexEqual(vertex v1,vertex v2){
+namespace PathPlanners_all
+{
+PathPlannersROS::PathPlannersROS(){}
+PathPlannersROS::PathPlannersROS(std::string name, costmap_2d::Costmap2DROS* costmap_ros){initialize(name, costmap_ros);}
+
+
+bool PathPlannersROS::isVertexEqual(vertex v1,vertex v2){
     if(v1.x == v2.x && v1.y == v2.y){
         return 1;
     }
     return 0;
 }
 
-typedef priority_queue<vertex, vector<vertex>, compare > m_priority_queue; //Min Priority Queue
-m_priority_queue U;
 
-queue<vertex> changed_nodes;
 
-void showpq(m_priority_queue gq){
+void PathPlannersROS::showpq(m_priority_queue gq){
     m_priority_queue g = gq;
     while (!g.empty()) {
         vertex c_v = g.top();
@@ -117,26 +109,26 @@ void showpq(m_priority_queue gq){
     cout << '\n';
 }
 
-double h(vertex s1,vertex s2){   
+double PathPlannersROS::h(vertex s1,vertex s2){   
     //heuristic function
     return sqrt(pow((s1.x-s2.x),2) + pow((s1.y-s2.y),2));
 }
 
-bool isInQueue(vertex s){
+bool PathPlannersROS::isInQueue(vertex s){
     if(Ukey[s.x][s.y]==1){
         return 1;
     }
     return 0;
 }
 
-void pushToQueue(vertex s){
+void PathPlannersROS::pushToQueue(vertex s){
     Ukey[s.x][s.y] = 1;
     Ukey_k1[s.x][s.y] = s.k1;
     Ukey_k2[s.x][s.y] = s.k2;
     U.push(s);
 }
 
-bool isCostLower(vertex b, vertex a){   
+bool PathPlannersROS::isCostLower(vertex b, vertex a){   
     if(a.k1 > b.k1){
         return 1;
     }else if(a.k1 == b.k1){
@@ -145,7 +137,7 @@ bool isCostLower(vertex b, vertex a){
     }else return 0;
 }
 
-vertex CalculateKey(vertex s){
+vertex PathPlannersROS::CalculateKey(vertex s){
     //cout<<"✨";
     if(s.x < 0 || s.x > grid_s_x || s.y < 0 || s.y > grid_s_y){
         s.k1 = Inf;
@@ -162,7 +154,7 @@ vertex CalculateKey(vertex s){
     return s;
 }
 
-double edgecost(vertex a,vertex b){
+double PathPlannersROS::edgecost(vertex a,vertex b){
     bool blocked = GRID[a.x][a.y] + GRID[b.x][b.y];
 
     if(blocked > 0){
@@ -173,7 +165,7 @@ double edgecost(vertex a,vertex b){
 
 }
 
-double cg_cost(vertex a,vertex b){
+double PathPlannersROS::cg_cost(vertex a,vertex b){
     bool blocked = GRID[a.x][a.y] + GRID[b.x][b.y];
 
     if(blocked > 0){
@@ -187,7 +179,7 @@ double cg_cost(vertex a,vertex b){
 
 }
 
-void UpdateVertex(vertex u){
+void PathPlannersROS::UpdateVertex(vertex u){
     //cout<<"✨";
     if(u.x < 0 || u.x > grid_s_x || u.y < 0 || u.y > grid_s_y){
         return;
@@ -232,20 +224,20 @@ void UpdateVertex(vertex u){
     }
 }
 
-bool isGhost(vertex s){
+bool PathPlannersROS::isGhost(vertex s){
     if(Ukey[s.x][s.y]==1 && Ukey_k1[s.x][s.y]==s.k1 && Ukey_k2[s.x][s.y]==s.k2){
         return 0;
     }
     return 1;
 }
 
-void pop(){
+void PathPlannersROS::pop(){
     vertex s = U.top();
     Ukey[s.x][s.y]=0;
     U.pop();
 }
 
-vertex TopKey(){
+vertex PathPlannersROS::TopKey(){
     if(U.size()==0)return vertex(0,0,Inf,Inf);
 
     vertex temp = U.top();
@@ -258,7 +250,7 @@ vertex TopKey(){
     return temp; //return top most vertex which isn't a ghost
 }
 
-void ComputeShortestPath(){
+void PathPlannersROS::ComputeShortestPath(){
 
     while(isCostLower(TopKey(),CalculateKey(s_start)) ||
         rhs[s_start.x][s_start.y] != g[s_start.x][s_start.y])
@@ -313,7 +305,7 @@ void ComputeShortestPath(){
     }
 
 }
-void fillGRID(){
+void PathPlannersROS::fillGRID(){
     string line;
     ifstream textfile("in.in");
 
@@ -332,7 +324,7 @@ void fillGRID(){
     textfile.close();
 }
 
-void fillGRID_(bool random=0){
+void PathPlannersROS::fillGRID_(bool random=0){
 
     if(random){
         for(int i=0;i <= grid_s_x;i++)
@@ -347,7 +339,7 @@ void fillGRID_(bool random=0){
     GRID[s_start.x][s_start.y] = 0;
     
 }
-void initialize(vertex startCell,vertex goalCell){
+void PathPlannersROS::initialize(vertex startCell,vertex goalCell){
     s_start = startCell;
     s_last  = s_start;
     s_goal  = goalCell;
@@ -366,14 +358,14 @@ void initialize(vertex startCell,vertex goalCell){
     rhs[s_goal.x][s_goal.y] = 0;
 }
 
-void Traverse(vertex pos){
+void PathPlannersROS::Traverse(vertex pos){
     if(pos.x < 0 || pos.x > grid_s_x || pos.y < 0 || pos.y > grid_s_y){
       return;
     }
     PATH[pos.x][pos.y] = 1;
 }
 
-int indexofSmallestElement(double array[]){
+int PathPlannersROS::indexofSmallestElement(double array[]){
     int index = 0;
 
     for(int i = 1; i < 8; i++){
@@ -385,13 +377,13 @@ int indexofSmallestElement(double array[]){
 }
 int  moves[8][2] = {{-1,0},{0,-1},{1,0},{0,1},{-1,-1},{-1,1},{1,-1},{1,1}};
 
-double step_cost(int x,int y){
+double PathPlannersROS::step_cost(int x,int y){
     if(x < 0 || x > grid_s_x || y < 0 || y > grid_s_y){
         return Inf;
     }else return g[x][y];
 }
 
-int onestep(){
+int PathPlannersROS::onestep(){
 
     if(s_start.x==s_goal.x && s_start.y==s_goal.y)return -1;
 
@@ -408,6 +400,7 @@ int onestep(){
      
     Traverse(s_start); //move to start
 
+	/*
     //scan graph for changed costs...
     if(changed_nodes.size()>0){ //if any edge costs changed
 
@@ -422,29 +415,22 @@ int onestep(){
         }
        
         ComputeShortestPath();
-    }
+    }*/
     return 1;
 
 
 }
-vector<int> dStarLite(int startCell,int goalCell){
-	PathPlanners_all::PathPlannersROS pp;
+vector<int> PathPlannersROS::DStarLite(int startCell,int goalCell){
+	
 
-    vertex startCell_(pp.getRow(startCell),pp.getCol(startCell),0,0);
-    vertex  goalCell_(pp.getRow(goalCell ),pp.getCol(goalCell),0,0);
+    vertex startCell_(getRow(startCell),getCol(startCell),0,0);
+    vertex  goalCell_(getRow(goalCell ),getCol(goalCell),0,0);
 
+	cout<<" => Yo"<<endl;
+	
     initialize(startCell_,goalCell_);
     
     cout<<"Successfully loaded GRID"<<endl;
-
-    for(int k=0;k<20;k++){
-        for(int m=0;m<20;m++){
-            cout<<GRID[k][m]<<" ";
-        } 
-        cout<<endl;
-    }
-    cout<<"Priority Queue Size = "<<U.size()<<endl;
-
     s_goal = CalculateKey(s_goal);
     cout<<"going to push to queue...";
     pushToQueue(s_goal);
@@ -460,21 +446,18 @@ vector<int> dStarLite(int startCell,int goalCell){
     vector<int> emptyPath;
 
     if(g[s_start.x][s_start.y]!=Inf){
-        while(onestep()){
-            bestPath.insert(bestPath.begin()+bestPath.size(),pp.getIndex(s_start.x,s_start.y));
+        while(onestep()>0){
+            bestPath.insert(bestPath.begin()+bestPath.size(),getIndex(s_start.x,s_start.y));
         }
     }else{
-		cout << "❓ Path not found!" << endl;
+		cout << "Path not found!" << endl;
 		return emptyPath;
     }
-
+	//vector<int> bestPath;
+	cout<<"returining path "<<endl;
     return bestPath;
 }
 
-namespace PathPlanners_all
-{
-PathPlannersROS::PathPlannersROS(){}
-PathPlannersROS::PathPlannersROS(std::string name, costmap_2d::Costmap2DROS* costmap_ros){initialize(name, costmap_ros);}
 
 void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
 	if (!initialized_){
@@ -489,18 +472,23 @@ void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* cos
 		resolution = costmap_->getResolution();
 		mapSize = width*height;
 
+		grid_s_x = width; ////
+		grid_s_y = height;////
+
 		OGM = new bool [mapSize]; 
 		for (unsigned int iy = 0; iy < height; iy++){
 			for (unsigned int ix = 0; ix < width; ix++){
 				unsigned int cost = static_cast<int>(costmap_->getCost(ix,iy));
 				
-				if (cost <= 255){
+				if (cost <= 150){
 					OGM[iy*width+ix]=true;
 					// cout <<"Traversable"<< ix<<","<<iy<<"   cost:"<<cost<<endl;
+					GRID[ix][iy] = false; ////
 				}
 
 				else{
 					OGM[iy*width+ix]=false;
+					GRID[ix][iy] = true; ////
 					// cout <<"Obstacle"<< ix<<","<<iy<<"   cost:"<<cost<<endl;
 				}
 			}
@@ -645,13 +633,13 @@ vector<int> PathPlannersROS::PathFinder(int startCell, int goalCell){
 	float g_score [mapSize];
 	for (uint i=0; i<mapSize; i++)
 		g_score[i]=infinity;
-		
+
 	timespec time1, time2;
 
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
 	
-	bestPath=AStar(startCell, goalCell,  g_score);
-	//bestPath=DstarLite(startCell, goalCell);
+	//bestPath=AStar(startCell, goalCell,  g_score);
+	bestPath=DStarLite(startCell, goalCell);
 
 	// bestPath=Dijkstra(startCell, goalCell,  g_score);
 	// bestPath=BFS(startCell, goalCell,  g_score);
