@@ -65,6 +65,27 @@ struct cells{
     float fCost;
 };      
 
+struct vertex{  //Stores a vertex along with k1,k2 Costs
+    int x,y;
+    float k1;
+    float k2;
+    vertex(int,int,float,float);
+    vertex():x(0),y(0),k1(0),k2(0){}
+};
+
+struct compare{ //Custom Comparison Function
+    bool operator()(const vertex & a, const vertex & b){   
+            if(a.k1 > b.k1){
+                return 1;
+            }else if((a.k1 == b.k1)){
+                if(a.k2 > b.k2)return 1;
+                else return 0;
+            }else return 0;
+    }
+};
+
+typedef priority_queue<vertex, vector<vertex>, compare > m_priority_queue; //Min Priority Queue
+
 
 
 namespace PathPlanners_all{
@@ -103,14 +124,39 @@ public:
     int getRow(int index){return index/width;}
     int getCol(int index){return index%width;}
     
-    float getMoveCost(vertex CellID1, vertex CellID2);
+    float getMoveCost(int CellID1, int CellID2);
 
-    vector<vertex> getNeighbour (vertex CellID);
-    vector<int> PathFinder(vertex startCell, vertex goalCell);
-    vector<int> AStar(vertex startCell, vertex goalCell, float g_score[1000][1000]);
-    vector<int> Dijkstra(int startCell, int goalCell, float g_score[1000][1000]);
-    vector<int> BFS(int startCell, int goalCell, float g_score[1000][1000]);
-    vector<int> constructPath(vertex startCell, vertex goalCell, float g_score[1000][1000]);
+    vector <int> getNeighbour (int CellID);
+    vector<int> PathFinder(int startCell, int goalCell);
+    vector<int> DStarLite(int startCell, int goalCell);
+        bool isVertexEqual(vertex v1,vertex v2);
+        void showpq(m_priority_queue gq);
+        double h(vertex s1,vertex s2);
+        bool isInQueue(vertex s);
+        void pushToQueue(vertex s);
+        bool isCostLower(vertex b, vertex a);
+        vertex CalculateKey(vertex s);
+        double edgecost(vertex a,vertex b);
+        double cg_cost(vertex a,vertex b);
+        void UpdateVertex(vertex u);
+        bool isGhost(vertex s);
+        void pop();
+        vertex TopKey();
+        void ComputeShortestPath();
+        void fillGRID();
+        void fillGRID_(bool random);
+        void initialize(vertex startCell,vertex goalCell);
+        void Traverse(vertex pos);
+        int indexofSmallestElement(double array[]);
+        double step_cost(int x,int y);
+        int onestep();
+
+
+    vector<int> AStar(int startCell, int goalCell, float g_score[]);
+    vector<int> Dijkstra(int startCell, int goalCell, float g_score[]);
+    vector<int> BFS(int startCell, int goalCell, float g_score[]);
+    vector<int> constructPath(int startCell, int goalCell, float g_score[]);
+
     
     float heuristic(vertex cellID, vertex goalCell, int n){
         int x1 = goalCell.x;
