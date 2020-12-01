@@ -1,4 +1,5 @@
 #include "pathplanners.h"
+#include<fstream>
 
 PLUGINLIB_EXPORT_CLASS(PathPlanners_all::PathPlannersROS, nav_core::BaseGlobalPlanner);
 
@@ -35,6 +36,13 @@ PathPlannersROS::PathPlannersROS(){}
 PathPlannersROS::PathPlannersROS(std::string name, costmap_2d::Costmap2DROS* costmap_ros){initialize(name, costmap_ros);}
 
 void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
+
+	ofstream myfile;
+  	myfile.open ("/home/ramith/out.txt");
+
+	ofstream myfile_r;
+  	myfile_r.open ("/home/ramith/out2.txt");
+
 	if (!initialized_){
 		costmap_ros_ = costmap_ros;
 		costmap_ = costmap_ros_->getCostmap();
@@ -52,7 +60,7 @@ void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* cos
 			for (unsigned int ix = 0; ix < width; ix++){
 				unsigned int cost = static_cast<int>(costmap_->getCost(ix,iy));
 				
-				if (cost <= 255){
+				if (cost <= 150){
 					OGM[iy*width+ix]=true;
 					// cout <<"Traversable"<< ix<<","<<iy<<"   cost:"<<cost<<endl;
 				}
@@ -61,7 +69,14 @@ void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* cos
 					OGM[iy*width+ix]=false;
 					// cout <<"Obstacle"<< ix<<","<<iy<<"   cost:"<<cost<<endl;
 				}
+				if(ix%10){
+					myfile <<OGM[iy*width+ix];
+					myfile_r<<cost<<" ";
+					
+				}
 			}
+			myfile<<endl;
+			myfile_r<<endl;
 		}
 		ROS_INFO("Jump Point Search initialized successfully");
 		initialized_ = true;
