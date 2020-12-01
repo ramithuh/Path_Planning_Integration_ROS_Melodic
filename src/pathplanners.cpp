@@ -428,8 +428,10 @@ int onestep(){
 
 }
 vector<int> dStarLite(int startCell,int goalCell){
-    vertex startCell_(getRow(startCell),getCol(startCell),0,0);
-    vertex  goalCell_(getRow(goalCell ),getCol(goalCell),0,0);
+	PathPlanners_all::PathPlannersROS pp;
+
+    vertex startCell_(pp.getRow(startCell),pp.getCol(startCell),0,0);
+    vertex  goalCell_(pp.getRow(goalCell ),pp.getCol(goalCell),0,0);
 
     initialize(startCell_,goalCell_);
     
@@ -459,7 +461,7 @@ vector<int> dStarLite(int startCell,int goalCell){
 
     if(g[s_start.x][s_start.y]!=Inf){
         while(onestep()){
-            bestPath.insert(bestPath.begin()+bestPath.size(), getIndex(s_start.x,s_start.y));
+            bestPath.insert(bestPath.begin()+bestPath.size(),pp.getIndex(s_start.x,s_start.y));
         }
     }else{
 		cout << "❓ Path not found!" << endl;
@@ -640,16 +642,16 @@ void PathPlannersROS::mapToWorld(double mx, double my, double& wx, double& wy){
 
 vector<int> PathPlannersROS::PathFinder(int startCell, int goalCell){
 	vector<int> bestPath;
-	/*float g_score [mapSize];
+	float g_score [mapSize];
 	for (uint i=0; i<mapSize; i++)
-		g_score[i]=infinity;*/
-
+		g_score[i]=infinity;
+		
 	timespec time1, time2;
 
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
 	
 	bestPath=AStar(startCell, goalCell,  g_score);
-	bestPath=DstarLite(startCell, goalCell);
+	//bestPath=DstarLite(startCell, goalCell);
 
 	// bestPath=Dijkstra(startCell, goalCell,  g_score);
 	// bestPath=BFS(startCell, goalCell,  g_score);
