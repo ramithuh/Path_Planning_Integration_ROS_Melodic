@@ -49,11 +49,23 @@ using std::string;
 #ifndef PathPlanners_ROS
 #define PathPlanners_ROS
 
+struct vertex{  //Stores a vertex along with k1,k2 Costs
+
+    int x,y;
+    float k1;
+    float k2;
+    vertex(int,int,float,float);
+    vertex():x(0),y(0),k1(0),k2(0){}
+    
+};
+
 // Structure to store the cells in a data type
 struct cells{
-    int currentCell;
+    vertex currentCell;
     float fCost;
 };      
+
+
 
 namespace PathPlanners_all{
   
@@ -85,22 +97,27 @@ public:
     bool isValid(int startCell,int goalCell); 
     bool isFree(int CellID); //returns true if the cell is Free
 
-    int convertToCellIndex (float x, float y);
+    vertex convertToCellVertex (float x, float y);
+    int    convertToCellIndex (vertex current);
     int getIndex(int i,int j){return (i*width)+j;}
     int getRow(int index){return index/width;}
     int getCol(int index){return index%width;}
     
-    float getMoveCost(int CellID1, int CellID2);
+    float getMoveCost(vertex CellID1, vertex CellID2);
 
     vector <int> getNeighbour (int CellID);
     vector<int> PathFinder(int startCell, int goalCell);
-    vector<int> AStar(int startCell, int goalCell, float g_score[]);
-    vector<int> Dijkstra(int startCell, int goalCell, float g_score[]);
-    vector<int> BFS(int startCell, int goalCell, float g_score[]);
-    vector<int> constructPath(int startCell, int goalCell, float g_score[]);
+    vector<int> AStar(int startCell, int goalCell, float g_score[][]);
+    vector<int> Dijkstra(int startCell, int goalCell, float g_score[][]);
+    vector<int> BFS(int startCell, int goalCell, float g_score[][]);
+    vector<int> constructPath(int startCell, int goalCell, float g_score[][]);
     
-    float heuristic(int cellID, int goalCell, int n){
-        int x1=getRow(goalCell);int y1=getCol(goalCell);int x2=getRow(cellID);int y2=getCol(cellID);
+    float heuristic(vertex cellID, vertex goalCell, int n){
+        int x1 = goalCell.x;
+        int y1 = goalCell.y;
+        int x2 = cellID.x;
+        int y2 = cellID.y;
+
         int dx = abs(x2-x1) ; int dy = abs(y2-y1);
         // Manhattan Heuristic
         if(n==1)
