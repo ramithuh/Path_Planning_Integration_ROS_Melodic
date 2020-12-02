@@ -4,7 +4,6 @@
 /*####################*/
 
 #include "pathplanners.h"
-
 #include<iostream>
 #include <queue>
 #include <limits>
@@ -58,7 +57,7 @@ queue<vertex> changed_nodes;
 PLUGINLIB_EXPORT_CLASS(PathPlanners_all::PathPlannersROS, nav_core::BaseGlobalPlanner);
 
 int mapSize;
-bool OGM[1000][1000];
+bool* OGM;
 static const float INFINIT_COST = INT_MAX;
 float infinity = std::numeric_limits< float >::infinity();
 
@@ -81,12 +80,11 @@ timespec diff(timespec start, timespec end){
 }
 
 
-inline vector <vertex> getNeighbour (vertex CellID);
+inline vector <int> getNeighbour (int CellID);
 
 
-vertex::vertex(int p_x,int p_y,float p_k1, float p_k2):x{p_x},y{p_y},k1{p_k1},k2{p_k2}{}
-
-namespace PathPlanners_all{
+namespace PathPlanners_all
+{
 PathPlannersROS::PathPlannersROS(){}
 PathPlannersROS::PathPlannersROS(std::string name, costmap_2d::Costmap2DROS* costmap_ros){initialize(name, costmap_ros);}
 
@@ -393,7 +391,7 @@ int PathPlannersROS::onestep(){
 
     for(int i=0; i<8; i++)
         arr[i] = step_cost(s_start.x + moves[i][0],s_start.y + moves[i][1]) + edgecost(s_start,vertex(s_start.x + moves[i][0],s_start.y + moves[i][1],0,0));
-    cout<<" ✨ "<<s_start.x<<","<<s_start.y<<endl;
+    //cout<<" ✨ "<<s_start.x<<","<<s_start.y<<endl;
 
     int min_index = indexofSmallestElement(arr); //arg min 
 
@@ -428,7 +426,6 @@ vector<int> PathPlannersROS::DStarLite(int startCell,int goalCell){
     vertex startCell_(getRow(startCell),getCol(startCell),0,0);
     vertex  goalCell_(getRow(goalCell ),getCol(goalCell),0,0);
 
-	cout<<" => Yo"<<endl;
 	
     initialize(startCell_,goalCell_);
     
@@ -462,13 +459,6 @@ vector<int> PathPlannersROS::DStarLite(int startCell,int goalCell){
 
 
 void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
-
-	ofstream myfile;
-  	myfile.open ("/home/ramith/out.txt");
-
-	ofstream myfile_r;
-  	myfile_r.open ("/home/ramith/out2.txt");
-
 	if (!initialized_){
 		costmap_ros_ = costmap_ros;
 		costmap_ = costmap_ros_->getCostmap();
@@ -485,7 +475,6 @@ void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* cos
 		grid_s_y = height;////
 
 		OGM = new bool [mapSize]; 
-    
 		for (unsigned int iy = 0; iy < height; iy++){
 			for (unsigned int ix = 0; ix < width; ix++){
 				unsigned int cost = static_cast<int>(costmap_->getCost(ix,iy));
@@ -501,14 +490,7 @@ void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* cos
 					GRID[ix][iy] = true; ////
 					// cout <<"Obstacle"<< ix<<","<<iy<<"   cost:"<<cost<<endl;
 				}
-				if(ix%10){
-					myfile <<OGM[iy][ix];
-					myfile_r<<cost<<" ";
-					
-				}
 			}
-			myfile<<endl;
-			myfile_r<<endl;
 		}
 		ROS_INFO("Jump Point Search initialized successfully");
 		initialized_ = true;
@@ -521,11 +503,11 @@ void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* cos
 
 bool PathPlannersROS::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,std::vector<geometry_msgs::PoseStamped>& plan){
 	if (!initialized_){
-		ROS_ERROR("=> The planner has not been initialized, please call initialize() to use the planner");
+		ROS_ERROR("The planner has not been initialized, please call initialize() to use the planner");
 		return false;
 	}
 
-	ROS_DEBUG("=> Got a start: %.2f, %.2f, and a goal: %.2f, %.2f", start.pose.position.x, start.pose.position.y,goal.pose.position.x, goal.pose.position.y);
+	ROS_DEBUG("Got a start: %.2f, %.2f, and a goal: %.2f, %.2f", start.pose.position.x, start.pose.position.y,goal.pose.position.x, goal.pose.position.y);
 	plan.clear();
 
 	if (goal.header.frame_id != costmap_ros_->getGlobalFrameID()){
@@ -549,12 +531,12 @@ bool PathPlannersROS::makePlan(const geometry_msgs::PoseStamped& start, const ge
 	getCoordinate(startX, startY);
 	getCoordinate(goalX, goalY);
 
-	vertex startCell;
-	vertex goalCell;
+	int startCell;
+	int goalCell;
 
 	if (validate(startX, startY) && validate(goalX, goalY)){
-		startCell = convertToCellVertex(startX, startY);
-		goalCell  = convertToCellVertex(goalX, goalY);
+		startCell = convertToCellIndex(startX, startY);
+		goalCell = convertToCellIndex(goalX, goalY);
 	}
 
 	else{
@@ -617,20 +599,11 @@ void PathPlannersROS::getCoordinate(float& x, float& y){
 	y = y - originY;
 }
 
-vertex PathPlannersROS::convertToCellVertex(float x, float y){
-
-	vertex cellIndex;
+int PathPlannersROS::convertToCellIndex(float x, float y){
+	int cellIndex;
 	float newX = x / resolution;
 	float newY = y / resolution;
-
-	cellIndex.x = int(newX);
-	cellIndex.y = int(newY);
-	return cellIndex;
-}
-
-int PathPlannersROS::convertToCellIndex(vertex current){
-	int cellIndex;
-	cellIndex = getIndex(current.x, current.y);
+	cellIndex = getIndex(newY, newX);
 	return cellIndex;
 }
 
@@ -654,13 +627,11 @@ void PathPlannersROS::mapToWorld(double mx, double my, double& wx, double& wy){
 	wy = costmap->getOriginY() + my * resolution;
 }
 
-vector<int> PathPlannersROS::PathFinder(vertex startCell, vertex goalCell){
+vector<int> PathPlannersROS::PathFinder(int startCell, int goalCell){
 	vector<int> bestPath;
-	float g_score[1000][1000];
-
-	for (uint i=0; i < 1000; i++)
-		for (uint j=0; j < 1000; j++)
-			g_score[i][j]=infinity;
+	float g_score [mapSize];
+	for (uint i=0; i<mapSize; i++)
+		g_score[i]=infinity;
 
 	timespec time1, time2;
 
@@ -680,36 +651,35 @@ vector<int> PathPlannersROS::PathFinder(vertex startCell, vertex goalCell){
 	return bestPath;
 }
 
-vector<int> PathPlannersROS::AStar(vertex startCell, vertex goalCell, float g_score[1000][1000]){
+vector<int> PathPlannersROS::AStar(int startCell, int goalCell, float g_score[]){
 	vector<int> bestPath;
 	vector<int> emptyPath;
 	cells CP;
 
 	multiset<cells> OPL;
-	vertex currentCell;
+	int currentCell;
 
-	g_score[startCell.x][startCell.y]=0;
-
-	CP.currentCell = startCell;
-	CP.fCost = g_score[startCell.x][startCell.y] + heuristic(startCell,goalCell,1);
+	g_score[startCell]=0;
+	CP.currentCell=startCell;
+	CP.fCost=g_score[startCell]+heuristic(startCell,goalCell,1);
 	OPL.insert(CP);
-	currentCell = startCell;
+	currentCell=startCell;
 
-	while (!OPL.empty() && g_score[goalCell.x][goalCell.y]==infinity){
+	while (!OPL.empty()&& g_score[goalCell]==infinity){
 		currentCell = OPL.begin()->currentCell;
 		OPL.erase(OPL.begin());
-		vector <vertex> neighborCells; 
-		neighborCells = getNeighbour(currentCell);
-		for(uint i=0; i < neighborCells.size(); i++){
-			if(g_score[neighborCells[i].x][neighborCells[i].y]==infinity){
-			   g_score[neighborCells[i].x][neighborCells[i].y]=g_score[currentCell.x][currentCell.y] + getMoveCost(currentCell,neighborCells[i]);
+		vector <int> neighborCells; 
+		neighborCells=getNeighbour(currentCell);
+		for(uint i=0; i<neighborCells.size(); i++){
+			if(g_score[neighborCells[i]]==infinity){
+				g_score[neighborCells[i]]=g_score[currentCell]+getMoveCost(currentCell,neighborCells[i]);
 				add_open(OPL, neighborCells[i], goalCell, g_score, 1); 
 			}
 		}
 	}
 
-	if(g_score[goalCell.x][goalCell.y]!=infinity){
-		bestPath = constructPath(startCell, goalCell, g_score);
+	if(g_score[goalCell]!=infinity){
+		bestPath=constructPath(startCell, goalCell, g_score);
 		return bestPath; 
 	}
 	
@@ -718,7 +688,7 @@ vector<int> PathPlannersROS::AStar(vertex startCell, vertex goalCell, float g_sc
 		return emptyPath;
 	}
 }
-/*
+
 vector<int> PathPlannersROS::Dijkstra(int startCell, int goalCell, float g_score[]){
 	vector<int> bestPath;
 	vector<int> emptyPath;
@@ -793,30 +763,30 @@ vector<int> PathPlannersROS::BFS(int startCell, int goalCell, float g_score[]){
 		cout << "Path not found!" << endl;
 		return emptyPath;
 	}
-}*/
+}
 
 
 
-vector<int> PathPlannersROS::constructPath(vertex startCell, vertex goalCell,float g_score[1000][1000])
+vector<int> PathPlannersROS::constructPath(int startCell, int goalCell,float g_score[])
 {
 	vector<int> bestPath;
 	vector<int> path;
 
-	path.insert(path.begin()+bestPath.size(),convertToCellIndex(goalCell));
-	vertex currentCell = goalCell;
+	path.insert(path.begin()+bestPath.size(), goalCell);
+	int currentCell=goalCell;
 
-	while(currentCell.x!=startCell.x && currentCell.y!=startCell.y){ 
-		vector <vertex> neighborCells;
-		neighborCells = getNeighbour(currentCell);
+	while(currentCell!=startCell){ 
+		vector <int> neighborCells;
+		neighborCells=getNeighbour(currentCell);
 
 		vector <float> gScoresNeighbors;
 		for(uint i=0; i<neighborCells.size(); i++)
-			gScoresNeighbors.push_back(g_score[neighborCells[i].x][neighborCells[i].y]);
+			gScoresNeighbors.push_back(g_score[neighborCells[i]]);
 		
 		int posMinGScore=distance(gScoresNeighbors.begin(), min_element(gScoresNeighbors.begin(), gScoresNeighbors.end()));
-		currentCell = neighborCells[posMinGScore];
+		currentCell=neighborCells[posMinGScore];
 
-		path.insert(path.begin()+path.size(),convertToCellIndex(currentCell));
+		path.insert(path.begin()+path.size(), currentCell);
 	}
 
 	for(uint i=0; i<path.size(); i++)
@@ -825,42 +795,41 @@ vector<int> PathPlannersROS::constructPath(vertex startCell, vertex goalCell,flo
 	return bestPath;
 }
 
-void PathPlannersROS::add_open(multiset<cells> & OPL, vertex neighborCell, vertex goalCell, float g_score[1000][1000] ,int n){
+void PathPlannersROS::add_open(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[] ,int n){
 	cells CP;
 	CP.currentCell=neighborCell;
 	if (n==1)
-		CP.fCost=g_score[neighborCell.x][neighborCell.y] + heuristic(neighborCell,goalCell,1);
+		CP.fCost=g_score[neighborCell]+heuristic(neighborCell,goalCell,1);
 	else
-		CP.fCost=g_score[neighborCell.x][neighborCell.y];
+		CP.fCost=g_score[neighborCell];
 	OPL.insert(CP);
 }
 
-vector <vertex> PathPlannersROS::getNeighbour (vertex CellID){
-	int rowID = CellID.x;
-	int colID = CellID.y;
-	vertex neighborIndex;
-	vector <vertex>  freeNeighborCells;
+vector <int> PathPlannersROS::getNeighbour (int CellID){
+	int rowID=getRow(CellID);
+	int colID=getCol(CellID);
+	int neighborIndex;
+	vector <int>  freeNeighborCells;
 
 	for (int i=-1;i<=1;i++)
 		for (int j=-1; j<=1;j++){
 			if ((rowID+i>=0)&&(rowID+i<height)&&(colID+j>=0)&&(colID+j<width)&& (!(i==0 && j==0))){
-				neighborIndex.x  = rowID+i;
-				neighborIndex.y  = colID+j;
-				if(isFree(neighborIndex))
+				neighborIndex = getIndex(rowID+i,colID+j);
+				if(isFree(neighborIndex) )
 					freeNeighborCells.push_back(neighborIndex);
 			}
 		}
 
-	return freeNeighborCells;
+	return  freeNeighborCells;
 }
 
-bool PathPlannersROS::isValid(vertex startCell,vertex goalCell){ 
+bool PathPlannersROS::isValid(int startCell,int goalCell){ 
 	bool isvalid=true;
 	
 	bool isFreeStartCell=isFree(startCell);
-	bool isFreeGoalCell =isFree(goalCell);
+	bool isFreeGoalCell=isFree(goalCell);
 	
-	if (startCell.x==goalCell.x && startCell.y==goalCell.y){
+	if (startCell==goalCell){
 		cout << "The Start and the Goal cells are the same..." << endl; 
 		isvalid = false;
 	}
@@ -901,13 +870,13 @@ bool PathPlannersROS::isValid(vertex startCell,vertex goalCell){
 return isvalid;
 }
 
-float  PathPlannersROS::getMoveCost(vertex CellID1, vertex CellID2){
+float  PathPlannersROS::getMoveCost(int CellID1, int CellID2){
 	int i1=0,i2=0,j1=0,j2=0;
 
-	i1=CellID1.x;
-	j1=CellID1.y;
-	i2=CellID2.x;
-	j2=CellID2.y;
+	i1=getRow(CellID1);
+	j1=getCol(CellID1);
+	i2=getRow(CellID2);
+	j2=getCol(CellID2);
 
 	float moveCost=INFINIT_COST;
 	if(i1!=i2 && j1!=j2)
@@ -917,8 +886,8 @@ float  PathPlannersROS::getMoveCost(vertex CellID1, vertex CellID2){
 	return moveCost;
 } 
 
-bool PathPlannersROS::isFree(vertex current){
-	return OGM[current.x][current.y];
+bool  PathPlannersROS::isFree(int CellID){
+	return OGM[CellID];
 } 
 };
 
